@@ -42,14 +42,15 @@ jobs:
           SECTION_MAP="{"
           for i in $(seq 0 12); do
             SEC_SCORE=$(python scripts/section_score.py --section $i --md-file program.md 2>/dev/null | grep "Score:" | grep -oP '\d+' | head -1 || echo "0")
-            echo "section_${i}=${SEC_SCORE}" >> $GITHUB_OUTPUT
             if [ "$i" -gt 0 ]; then
               SECTION_MAP+=" ,"
             fi
             SECTION_MAP+="\"section_${i}\":${SEC_SCORE}"
           done
           SECTION_MAP+="}"
-          echo "sections=$SECTION_MAP" >> $GITHUB_OUTPUT
+          SECTIONS_FILE="$GITHUB_WORKSPACE/main_sections.json"
+          echo "$SECTION_MAP" > "$SECTIONS_FILE"
+          echo "sections_path=$SECTIONS_FILE" >> $GITHUB_OUTPUT
 
       - name: Score PR branch
         id: pr_score
@@ -60,28 +61,31 @@ jobs:
           SECTION_MAP="{"
           for i in $(seq 0 12); do
             SEC_SCORE=$(python scripts/section_score.py --section $i --md-file program.md 2>/dev/null | grep "Score:" | grep -oP '\d+' | head -1 || echo "0")
-            echo "section_${i}=${SEC_SCORE}" >> $GITHUB_OUTPUT
             if [ "$i" -gt 0 ]; then
               SECTION_MAP+=" ,"
             fi
             SECTION_MAP+="\"section_${i}\":${SEC_SCORE}"
           done
           SECTION_MAP+="}"
-          echo "sections=$SECTION_MAP" >> $GITHUB_OUTPUT
+          SECTIONS_FILE="$GITHUB_WORKSPACE/pr_sections.json"
+          echo "$SECTION_MAP" > "$SECTIONS_FILE"
+          echo "sections_path=$SECTIONS_FILE" >> $GITHUB_OUTPUT
 
       - name: Check for regressions
         id: regression
         env:
-          MAIN_SECTIONS: ${{ steps.main_score.outputs.sections }}
-          PR_SECTIONS: ${{ steps.pr_score.outputs.sections }}
+          MAIN_SECTIONS_FILE: ${{ steps.main_score.outputs.sections_path }}
+          PR_SECTIONS_FILE: ${{ steps.pr_score.outputs.sections_path }}
         run: |
           python <<'PY'
           import json
           import os
           from pathlib import Path
 
-          main_sections = json.loads(os.environ.get("MAIN_SECTIONS") or "{}")
-          pr_sections = json.loads(os.environ.get("PR_SECTIONS") or "{}")
+          with open(os.environ["MAIN_SECTIONS_FILE"], "r", encoding="utf-8") as f:
+              main_sections = json.load(f)
+          with open(os.environ["PR_SECTIONS_FILE"], "r", encoding="utf-8") as f:
+              pr_sections = json.load(f)
 
           regression = False
           for section in sorted(main_sections.keys()):
