@@ -501,6 +501,16 @@ Merge queue: one PR at a time. After merge, remaining PRs re-run against new mai
 
 Fail message posted as PR comment with gate results + score comparison + action required.
 
+**Queue enforcement details:**
+- The active PR is treated as the lock holder; maintainers never merge around it.
+- Waiting PRs automatically receive a fresh CI run after the lock holder merges.
+- Manual overrides are forbidden; skipping the queue would break the ratchet math.
+
+**Rerun + rescore protocol:**
+1. Pull latest main, rebase, and resolve conflicts locally.
+2. Re-run hard gates locally to catch failures faster than CI.
+3. Push fixes; the sticky CI comment refreshes its section score delta table in-place.
+
 Every `git push` re-triggers CI. Fix → push → wait.
 
 ---
