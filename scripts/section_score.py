@@ -282,6 +282,11 @@ def main():
         action="store_true",
         help="Exit with code 1 if any section regresses",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results as JSON (only for --all or --spec-file)",
+    )
 
     args = parser.parse_args()
 
@@ -294,6 +299,12 @@ def main():
             spec_content = f.read()
         checklist = load_spec_checklist()
         result = score_spec_file(spec_content, checklist)
+        
+        if args.json:
+            import json
+            print(json.dumps(result, indent=2))
+            return
+
         if args.ci_comment:
             main_scores = {}
             if args.main_score is not None:
@@ -331,6 +342,17 @@ def main():
         results.append(result)
 
     # Output
+    if args.json:
+        import json
+        total = sum(r["score"] for r in results)
+        avg = round(total / len(results)) if results else 0
+        output = {
+            "total_average": avg,
+            "sections": results
+        }
+        print(json.dumps(output, indent=2))
+        return
+
     if args.ci_comment:
         main_scores = {}
         if args.main_score is not None and args.section is not None:
@@ -351,6 +373,7 @@ def main():
         total = sum(r["score"] for r in results)
         avg = round(total / len(results))
         print(f"\n**TOTAL AVERAGE: {avg}/100**")
+
 
 
 if __name__ == "__main__":

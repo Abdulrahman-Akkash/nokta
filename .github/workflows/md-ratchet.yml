@@ -25,6 +25,36 @@ jobs:
           ref: main
           path: main-branch
 
+      - name: Check Immutable Files
+        id: immutable_check
+        run: |
+          git fetch origin main
+          IMMUTABLE_PATTERNS=(
+            ".github/workflows/"
+            "scripts/"
+            "checklists/"
+            "app.json"
+            "tsconfig.json"
+            "babel.config.js"
+            ".eslintrc.js"
+            "package.json"
+          )
+          MODIFIED=false
+          for pattern in "${IMMUTABLE_PATTERNS[@]}"; do
+            if git diff origin/main --name-only | grep -E "$pattern" > /dev/null; then
+              MODIFIED=true
+              echo "⚠️  Immutable file modified: $pattern"
+            fi
+          done
+          if [ "$MODIFIED" == "true" ]; then
+            echo "detected=true" >> $GITHUB_OUTPUT
+            echo "### ⚠️ IMMUTABLE FILE VIOLATION" >> /tmp/score_report.md
+            echo "You have modified files protected by CI. Spec-only PRs must NOT touch infrastructure." >> /tmp/score_report.md
+            echo "" >> /tmp/score_report.md
+          else
+            echo "detected=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -37,39 +67,15 @@ jobs:
         id: main_score
         run: |
           cd main-branch
-          MAIN_SCORES=$(python scripts/section_score.py --all --md-file program.md 2>/dev/null | grep "TOTAL AVERAGE" | grep -oP '\d+' | head -1 || echo "0")
-          echo "total=$MAIN_SCORES" >> $GITHUB_OUTPUT
-          SECTION_MAP="{"
-          for i in $(seq 0 12); do
-            SEC_SCORE=$(python scripts/section_score.py --section $i --md-file program.md 2>/dev/null | grep "Score:" | grep -oP '\d+' | head -1 || echo "0")
-            if [ "$i" -gt 0 ]; then
-              SECTION_MAP+=" ,"
-            fi
-            SECTION_MAP+="\"section_${i}\":${SEC_SCORE}"
-          done
-          SECTION_MAP+="}"
-          SECTIONS_FILE="$GITHUB_WORKSPACE/main_sections.json"
-          echo "$SECTION_MAP" > "$SECTIONS_FILE"
-          echo "sections_path=$SECTIONS_FILE" >> $GITHUB_OUTPUT
+          python scripts/section_score.py --all --json --md-file program.md > $GITHUB_WORKSPACE/main_scores.json
+          echo "sections_path=$GITHUB_WORKSPACE/main_scores.json" >> $GITHUB_OUTPUT
 
       - name: Score PR branch
         id: pr_score
         run: |
-          PR_SCORES=$(python scripts/section_score.py --all --md-file program.md 2>/dev/null | grep "TOTAL AVERAGE" | grep -oP '\d+' | head -1 || echo "0")
-          echo "total=$PR_SCORES" >> $GITHUB_OUTPUT
-          python scripts/section_score.py --all --ci-comment --md-file program.md > /tmp/score_report.md
-          SECTION_MAP="{"
-          for i in $(seq 0 12); do
-            SEC_SCORE=$(python scripts/section_score.py --section $i --md-file program.md 2>/dev/null | grep "Score:" | grep -oP '\d+' | head -1 || echo "0")
-            if [ "$i" -gt 0 ]; then
-              SECTION_MAP+=" ,"
-            fi
-            SECTION_MAP+="\"section_${i}\":${SEC_SCORE}"
-          done
-          SECTION_MAP+="}"
-          SECTIONS_FILE="$GITHUB_WORKSPACE/pr_sections.json"
-          echo "$SECTION_MAP" > "$SECTIONS_FILE"
-          echo "sections_path=$SECTIONS_FILE" >> $GITHUB_OUTPUT
+          python scripts/section_score.py --all --json --md-file program.md > $GITHUB_WORKSPACE/pr_scores.json
+          python scripts/section_score.py --all --ci-comment --md-file program.md >> /tmp/score_report.md
+          echo "sections_path=$GITHUB_WORKSPACE/pr_scores.json" >> $GITHUB_OUTPUT
 
       - name: Check for regressions
         id: regression
@@ -83,22 +89,30 @@ jobs:
           from pathlib import Path
 
           with open(os.environ["MAIN_SECTIONS_FILE"], "r", encoding="utf-8") as f:
-              main_sections = json.load(f)
+              main_data = json.load(f)
           with open(os.environ["PR_SECTIONS_FILE"], "r", encoding="utf-8") as f:
-              pr_sections = json.load(f)
+              pr_data = json.load(f)
+
+          main_sections = {str(s["section"]): s["score"] for s in main_data["sections"]}
+          pr_sections = {str(s["section"]): s["score"] for s in pr_data["sections"]}
+          
+          main_total = main_data.get("total_average", 0)
+          pr_total = pr_data.get("total_average", 0)
 
           regression = False
-          for section in sorted(main_sections.keys()):
-              main_val = int(main_sections.get(section, 0) or 0)
-              pr_val = int(pr_sections.get(section, 0) or 0)
+          for sec_id in sorted(main_sections.keys(), key=int):
+              main_val = int(main_sections.get(sec_id, 0))
+              pr_val = int(pr_sections.get(sec_id, 0))
               if pr_val < main_val:
-                  print(f"⚠️  {section} regressed: {main_val} → {pr_val}")
+                  print(f"⚠️  Section {sec_id} regressed: {main_val} → {pr_val}")
                   regression = True
 
           Path("regression.flag").write_text("true" if regression else "false")
+          Path("totals.env").write_text(f"MAIN_TOTAL={main_total}\nPR_TOTAL={pr_total}")
           PY
           REGRESSION=$(cat regression.flag)
           echo "detected=$REGRESSION" >> $GITHUB_OUTPUT
+          cat totals.env >> $GITHUB_ENV
 
       - name: Post score comment
         uses: marocchino/sticky-pull-request-comment@v2
@@ -107,16 +121,23 @@ jobs:
 
       - name: Gate decision
         run: |
-          if [ "${{ steps.regression.outputs.detected }}" = "true" ]; then
+          REGRESSION="${{ steps.regression.outputs.detected }}"
+          IMMUTABLE="${{ steps.immutable_check.outputs.detected }}"
+          
+          if [ "$IMMUTABLE" = "true" ]; then
+            echo "❌ REJECTED: Immutable files modified."
+            exit 1
+          elif [ "$REGRESSION" = "true" ]; then
             echo "❌ REJECTED: Score regression detected."
-            echo "PR score: ${{ steps.pr_score.outputs.total }}"
-            echo "Main score: ${{ steps.main_score.outputs.total }}"
+            echo "PR score: $PR_TOTAL"
+            echo "Main score: $MAIN_TOTAL"
             exit 1
           else
             echo "✅ PASSED: No regressions. Eligible for merge."
-            echo "PR score: ${{ steps.pr_score.outputs.total }}"
-            echo "Main score: ${{ steps.main_score.outputs.total }}"
+            echo "PR score: $PR_TOTAL"
+            echo "Main score: $MAIN_TOTAL"
           fi
+
 
   auto-merge:
     needs: score
