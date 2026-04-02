@@ -10,14 +10,15 @@
 
 The following files are the backbone of the project. Contributors MUST NOT modify them. CI enforces this.
 
-- `.github/workflows/` — CI pipeline. Modifying this breaks the ratchet. Only maintainer can edit.
-- `scripts/section_score.py` — The scoring engine. Changing this would let PRs game the metric.
-- `checklists/*.yml` — Scoring rubrics. These define truth. Only maintainer edits.
-- `app.json` — Expo app identity. Changing this breaks builds for everyone.
-- `tsconfig.json` — TypeScript strictness settings. Loosening these defeats type safety.
-- `babel.config.js` — Transpilation config. Touching this causes phantom build errors.
-- `.eslintrc.js` — Lint rules. These are hard gates in CI; changing them bypasses quality control.
-- `package.json` — Only maintainer may add/remove dependencies. Contributors propose via issue.
+- `.github/workflows/`: CI pipeline. Modifying this breaks the ratchet. Only maintainer can edit.
+- `scripts/section_score.py`: The scoring engine. Changing this would let PRs game the metric.
+- `checklists/*.yml`: Scoring rubrics. These define truth. Only maintainer edits.
+- `app.json`: Expo app identity. Changing this breaks builds for everyone.
+- `tsconfig.json`: TypeScript strictness settings. Loosening these defeats type safety.
+- `babel.config.js`: Transpilation config. Touching this causes phantom build errors.
+- `.eslintrc.js`: Lint rules. These are hard gates in CI; changing them bypasses quality control.
+- `package.json`: Only maintainer may add/remove dependencies. Contributors propose via issue.
+- `jest.config.js`: Test harness structure. Changing this circumvents testing standard gates.
 
 **Why:** Karpathy's pattern works because infrastructure is fixed and only the editable surface changes. These files are the fixed infrastructure. Everything else is the editable surface.
 

@@ -48,7 +48,9 @@ workflow.md says:
 
 ## Repository Context
 
-This is **Nokta** — a mobile app that matures idea sparks (dots) into structured product specs (pages) through LLM-guided questioning. The project follows Karpathy's autoresearch pattern:
+This is **NOKTA** — NAIM's Orchestrated Knowledge-To-Artifact. Nokta is the spec layer of the [NAIM](https://github.com/seyyah/naim) ecosystem (Naim Agentic Iterative Mobile): NAIM iterates on apps, NOKTA defines what to build first.
+
+Nokta matures idea sparks (dots) into structured product specs (pages) through LLM-guided questioning. The project follows Karpathy's autoresearch pattern:
 
 - Humans write specs (`program.md`, `specs/*.md`)
 - Machines write code (based on specs)

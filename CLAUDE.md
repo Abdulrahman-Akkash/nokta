@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working on the 
 
 ## Project Identity
 
-**Nokta** — Mobile app that matures idea sparks into structured product specs via LLM-guided questioning.
+**NOKTA** — NAIM's Orchestrated Knowledge-To-Artifact. The spec layer of the [NAIM](https://github.com/seyyah/naim) ecosystem. NAIM iterates on apps; NOKTA defines what to build first.
 
 - **Metaphor:** Dot → Line → Paragraph → Page (cosmological expansion)
 - **Target User:** Anyone with ideas but no structured maturation process
 - **Pattern:** Karpathy's autoresearch (humans write specs, machines write code, CI enforces quality)
+- **Ecosystem:** Part of NAIM (Naim Agentic Iterative Mobile)
 
 ## Source of Truth
 
