@@ -206,6 +206,8 @@ export const MATURITY_RULES: MaturityRule[] = [
 
 ### User Journey (canonical)
 
+The primary flow starts with a spark and ends at a structured spec. Every screen transition is router-driven via Expo Router.
+
 ```
 Open app → See idea list (empty state on first launch)
   → Tap FAB (+) → Enter spark ("drone cargo delivery")
@@ -219,46 +221,72 @@ Open app → See idea list (empty state on first launch)
   → Return to list → See updated maturity indicator
 ```
 
+**Navigation flow summary (Expo Router):**
+- `router.push('/idea/[id]')` — Home → Chat
+- `router.push('/idea/spec/[id]')` — Chat → Spec Card
+- `router.back()` — returns to previous screen in navigation stack
+
 ### Screen 1: Idea List (Home) — `app/index.tsx`
 
-The home screen shows all ideas as cards in a vertical list.
+The home screen renders all ideas using a `FlatList` for performant scrolling. Each idea appears as a card showing title, spark preview, maturity badge, and timestamp.
 
-Components: `IdeaCard` (title, spark preview, maturity badge, timestamp), `MaturityBadge` (● ━ ¶ 📄, color-coded gray→yellow→blue→green), `EmptyState` ("Start with a dot." + pulsing dot animation), `FAB` (bottom-right, opens bottom sheet with TextInput).
+Components:
+- `FlatList` — renders `IdeaCard` items via `keyExtractor` by id, sorted by `updatedAt` desc
+- `IdeaCard` — title, spark preview (max 50 chars), `MaturityBadge`, relative timestamp
+- `MaturityBadge` — ● gray/DOT, ━ yellow/LINE, ¶ blue/PARAGRAPH, 📄 green/PAGE
+- `EmptyState` — "Start with a dot." + pulsing dot animation, visible when FlatList data is empty
+- `FAB` — floating Button at bottom-right; opens bottom sheet with `TextInput` for spark entry
 
-Behavior: List sorted by updatedAt desc. Tap card → navigate to chat. Long-press → delete confirmation. FAB → bottom sheet → type spark → send → create DOT idea → auto-navigate to chat.
+Behavior: FlatList sorted by `updatedAt` desc. Tap card → `router.push('/idea/[id]')`. Long-press → delete confirmation dialog → confirm → remove from Zustand store and AsyncStorage. FAB → bottom sheet → type spark → send → create DOT idea → auto-navigate to Chat via router.
 
 Acceptance Criteria:
 - GIVEN no ideas WHEN app opens THEN empty state shown with FAB visible
-- GIVEN 5 ideas WHEN app opens THEN all 5 cards visible, sorted by updatedAt desc
+- GIVEN 5 ideas WHEN app opens THEN all 5 cards visible in FlatList, sorted by updatedAt desc
 - GIVEN user taps FAB and types "drone delivery" WHEN user presses send THEN new DOT idea created and chat opens
 - GIVEN user long-presses idea WHEN delete confirmed THEN idea removed from list and storage
+- GIVEN user returns from Chat WHEN maturity changed THEN IdeaCard shows updated MaturityBadge
+- GIVEN device storage is empty WHEN app first opens THEN EmptyState renders without crash
 
 ### Screen 2: Idea Chat (Refinement) — `app/idea/[id].tsx`
 
-SMS-style chat where the system guides refinement.
+SMS-style chat screen where the system guides idea refinement through structured questioning. This is the core interaction flow of Nokta.
 
-Components: `ChatBubble` (user=right/blue, assistant=left/gray), `MessageInput` (TextInput + send, disabled while loading), `MaturityProgress` (top bar, dot→line→paragraph→page), `SpecPreviewButton` (appears at PARAGRAPH+).
+Components:
+- `ChatBubble` — user messages right/blue; assistant messages left/gray
+- `MessageInput` — TextInput + send Button; disabled and shows loading indicator while LLM responds
+- `MaturityProgress` — top bar progress indicator: dot→line→paragraph→page, color-coded per stage
+- `SpecPreviewButton` — Button that calls `router.push('/idea/spec/[id]')`; appears at PARAGRAPH+ only
 
-Behavior: First load with empty messages → system sends first question. Each user message → system responds with next question. Maturity transitions automatically per MATURITY_RULES. Transition announced: "Your idea is now a line! 🎉". Messages persisted to AsyncStorage after each turn. Auto-scroll to bottom.
+Behavior: First load with no messages → LLM service called → system question displayed as first bubble. Each user message triggers LLM call → next question returned. Maturity transitions automatically per `MATURITY_RULES`. Transition toast: "Your idea is now a line! 🎉". Messages persisted after each turn. FlatList auto-scrolls to bottom on new message. On LLM timeout: fallback response shown, input re-enabled.
 
 Acceptance Criteria:
-- GIVEN new DOT idea WHEN chat opens THEN system's first message visible
-- GIVEN 3 answered questions WHEN maturity rules met THEN maturity transitions automatically
-- GIVEN maturity PARAGRAPH WHEN user views chat THEN SpecPreviewButton visible
-- GIVEN user closes/reopens chat WHEN messages existed THEN all messages restored
+- GIVEN new DOT idea WHEN chat opens THEN system's first message visible in FlatList
+- GIVEN 3 answered questions WHEN maturity rules met THEN maturity transitions automatically and toast shown
+- GIVEN maturity is PARAGRAPH WHEN user views chat THEN SpecPreviewButton visible
+- GIVEN user closes/reopens chat WHEN messages existed THEN all messages restored from storage
+- GIVEN LLM is loading WHEN user tries to send THEN send Button is disabled until response arrives
+- GIVEN LLM request times out WHEN waiting for response THEN fallback message shown, no crash, input re-enabled
+- GIVEN idea reaches PAGE WHEN maturity transition occurs THEN MaturityProgress shows full completion
 
 ### Screen 3: Idea Spec Card — `app/idea/spec/[id].tsx`
 
-Read-only structured spec view.
+Read-only structured spec view showing the matured result of the chat flow. All six IdeaSpec fields are displayed with clear labels.
 
-Components: `SpecField` (labeled field: Problem, Audience, Solution, Success Metrics, Effort, Uniqueness), `MaturityBadge`, `SparkOrigin` ("Your starting point: [spark]"), `ShareButton` (copy to clipboard as markdown).
+Components:
+- `SpecField` — labeled field component rendered for each of: Problem, Audience, Solution, Success Metrics, Effort Estimate, Uniqueness
+- `MaturityBadge` — shows current maturity stage at top of screen
+- `SparkOrigin` — displays "Your starting point: [spark]" to anchor the idea to its origin dot
+- `ShareButton` — Button that copies full spec as formatted markdown to clipboard, then shows success toast
 
-Behavior: All IdeaSpec fields displayed. Empty fields show "Not yet defined" muted. Spec updates live from chat. Share copies formatted markdown to clipboard.
+Behavior: Six `SpecField` components rendered; unpopulated fields show "Not yet defined" in muted style. Data always reflects latest Zustand store state (live updates when returning from chat). Share flow: format all fields as markdown → copy to clipboard → show "Copied!" toast. Navigation: `router.back()` returns to Chat screen.
 
 Acceptance Criteria:
-- GIVEN PAGE maturity WHEN spec opens THEN all 6 fields populated
-- GIVEN LINE maturity WHEN spec opens THEN available fields show, rest show placeholder
-- GIVEN user taps share WHEN spec exists THEN formatted text copied with success toast
+- GIVEN PAGE maturity WHEN spec opens THEN all 6 SpecField components show populated content
+- GIVEN LINE maturity WHEN spec opens THEN available fields show content, rest show "Not yet defined"
+- GIVEN user taps share WHEN spec has content THEN formatted markdown copied and "Copied!" toast shown
+- GIVEN user taps share WHEN spec has empty fields THEN only populated fields included in copied text
+- GIVEN user navigates back from Spec Card to Chat WHEN new answers given THEN Spec Card reflects updates on next visit
+- GIVEN spec card opened WHEN SparkOrigin rendered THEN original spark text visible at top of screen
 
 ---
 
