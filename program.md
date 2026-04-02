@@ -476,6 +476,7 @@ Golden flow tests (Jest + React Native Testing Library):
 
 ## 9. THE RATCHET LOOP
 
+The ratchet is the core quality enforcement mechanism of Nokta. Every PR must improve or maintain the current score. The score never drops. This is not a suggestion — it is a hard constraint enforced by CI.
 ```
 Push code → PR opened
     ↓
@@ -498,23 +499,84 @@ New baseline established
 
 **Score never drops. This is the ratchet.**
 
-Merge queue: one PR at a time. After merge, remaining PRs re-run against new main.
+### Why the Ratchet?
 
-Fail message posted as PR comment with gate results + score comparison + action required.
+Traditional code review relies on human judgment, which is slow, inconsistent, and unavailable at 3am. The ratchet replaces subjective review with an objective metric. If your change improves the product, it merges. If it doesn't, it doesn't. No negotiation, no exceptions.
 
-**Queue enforcement details:**
-- The active PR is treated as the lock holder; maintainers never merge around it.
-- Waiting PRs automatically receive a fresh CI run after the lock holder merges.
-- Manual overrides are forbidden; skipping the queue would break the ratchet math.
+This pattern is inspired by Karpathy's autoresearch model: a single measurable scalar drives all contribution decisions. Contributors compete to improve the same number. The highest score wins.
 
-**Rerun + rescore protocol:**
-1. Pull latest main, rebase, and resolve conflicts locally.
-2. Re-run hard gates locally to catch failures faster than CI.
-3. Push fixes; the sticky CI comment refreshes its section score delta table in-place.
+### Merge Queue
+
+One PR merges at a time. After a merge, all waiting PRs receive a fresh CI run against the new baseline.
+
+Rules:
+- The active PR is the lock holder. No PR jumps the queue.
+- Waiting PRs must not modify the same sections as the lock holder — this causes merge conflicts that reset the queue.
+- Manual overrides by maintainers are forbidden. Skipping the queue breaks the ratchet math for all waiting PRs.
+- If two PRs target the same section, the first to merge sets the new baseline. The second must beat it.
+
+### What Triggers a CI Run
+
+| Event | CI Triggered? |
+|---|---|
+| PR opened | ✅ Yes |
+| New commit pushed to PR branch | ✅ Yes |
+| PR base branch updated (merge queue) | ✅ Yes |
+| PR comment added | ❌ No |
+| PR description edited | ❌ No |
+| Draft PR converted to ready | ✅ Yes |
 
 Every `git push` re-triggers CI. Fix → push → wait.
 
+### Rerun + Rescore Protocol
+
+If your PR is rejected, follow these steps:
+
+1. Read the CI comment carefully. It lists which checklist items failed and the score delta.
+2. Pull the latest main to check if someone else merged and raised the baseline: `git fetch origin && git rebase origin/main`
+3. Fix the failing items in `program.md` or your spec file.
+4. Re-run the score locally before pushing: `python scripts/section_score.py --section <N>`
+5. Push the fix: `git push origin <your-branch>`
+6. CI re-runs automatically. The sticky comment in the PR refreshes in place — no new comment is posted.
+
+Do not close and reopen the PR. Push to the same branch. The CI comment updates automatically.
+
+### Score Delta Table
+
+Every CI run posts a score table to the PR comment:
+
+| Section | main score | PR score | Delta | Status |
+|---|---|---|---|---|
+| Section 03 | 72 | 85 | +13 | ✅ |
+| Section 09 | 60 | 60 | 0 | ✅ |
+| Section 12 | 45 | 40 | -5 | ❌ |
+
+A PR passes only if **all modified sections** have delta ≥ 0. A single section dropping is enough to reject the entire PR.
+
+### Baseline Reset Policy
+
+The baseline (main branch score) is sacred. It can only move up, never down. If a bug in the scoring script causes an artificially high score to be merged, the maintainer may issue a baseline correction — but this requires a public issue and a maintainer-signed commit. Contributors are notified via PR comments on all open PRs.
+
+### Anti-Patterns That Break the Ratchet
+
+- **Deleting content to game the score** — removing sections or checklist items that you cannot improve will lower your score, not raise it.
+- **Adding TODO placeholders** — `> TODO:` lines are penalized by the scoring script. Never leave them in.
+- **Copying from main verbatim** — a PR that does not change anything scores identically to main (delta = 0). Delta 0 passes, but wastes a queue slot.
+- **Opening multiple PRs for the same section** — only one can merge. The rest must rebase and beat the new baseline.
+```
+
 ---
+
+## PR için:
+
+Branch adı:
+```
+section/09-ratchet-loop
+```
+
+Commit mesajı:
+```
+docs(section-09): expand ratchet loop with merge queue and rerun protocol
 
 ## 10. CONTRIBUTION PROTOCOL
 
