@@ -636,17 +636,20 @@ docs(mobile-md): improve LLM contract section
 - **Zustand** only. All global state in `src/features/idea/store.ts`
 - Components access via hooks (`useIdeaStore`)
 - Direct AsyncStorage from components is FORBIDDEN
+> **Why:** Keeping state management localized to Zustand prevents prop-drilling and ensures our synchronous UI does not tangle with the asynchronous nature of AsyncStorage.
 
 ### Component Boundaries
 - Idea components: `src/features/idea/components/`
 - Screen files (`app/`): thin wrappers, no business logic
 - Shared UI: `src/components/ui/`
+> **Why:** Feature-sliced design limits the blast radius of changes. Screen files merely coordinate routing and composing feature components.
 
 ### Service Layer
 - LLM: `src/services/llm.ts` (single entry point)
 - Storage: `src/features/idea/services/storage.ts`
 - Components never call AsyncStorage or LLM directly
 - Services are pure functions, no React hooks
+> **Why:** Abstracting side-effects (LLM network calls, local file system) into a service layer ensures UI components remain pure and highly testable.
 
 ### Naming
 - Files: `kebab-case.ts` / `.tsx`
@@ -655,11 +658,13 @@ docs(mobile-md): improve LLM contract section
 - Types: `PascalCase`
 - Constants: `UPPER_SNAKE_CASE`
 - Tests: `<name>.test.ts(x)`, co-located in `__tests__/`
+> **Why:** Strict naming conventions remove cognitive overhead during code review and code generation by agents.
 
 ### Forbidden
 - No module-level `let`
 - No singletons with mutable state
 - No `window` / `global` assignments
+> **Why:** Global mutable state causes test pollution and makes tracking data flow impossible in a React hooks environment.
 
 ---
 
