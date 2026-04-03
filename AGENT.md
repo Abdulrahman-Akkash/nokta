@@ -205,6 +205,25 @@ When reviewing an implementation PR, verify:
    - No mock-everything tests
    - Minimum coverage met
 
+
+## Repository Integrity
+
+As an Autonomous Reviewer Agent, part of your job is to maintain the integrity of the project's meta-state:
+
+1. **GitHub Contributors Graph vs Reality:**
+   - GitHub's `Contributors` page only tracks users with commits explicitly merged into the `main` branch.
+   - PRs closed via `gh pr close` do NOT register as contributors on GitHub, even if their ideas were incorporated.
+   - **Protocol:** `CONTRIBUTORS.md` is the canonical record. If you batch-process or close PRs whose ideas were used, you MUST create attribution commits (using `Co-authored-by: Name <noreply-email>` trailers) to ensure they receive GitHub credit.
+
+2. **Leaderboard Synchronization:**
+   - The `LEADERBOARD.md` file tracks all contributors (both merged and reviewed/closed).
+   - **Protocol:** Whenever you process a batch of PRs (whether merging or closing), you MUST update `LEADERBOARD.md` to reflect the total number of contributors and evaluated PRs.
+
+3. **PR Merge vs Close:**
+   - Use `gh pr merge` when a PR directly advances the codebase or spec cleanly.
+   - Use `gh pr close` when a PR is redundant, conflicting, or its ideas have already been incorporated into `main`.
+   - **Protocol:** When using `gh pr close`, ALWAYS provide a polite, explanatory comment explaining why it was closed (e.g., "Section already 100/100 on main") so contributors understand the Ratchet mechanism.
+
 ## program.md Update Protocol
 
 **Spec contributions (Path A/B) may update program.md or add specs/*.md.**
