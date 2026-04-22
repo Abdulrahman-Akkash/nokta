@@ -12,13 +12,13 @@ Startup pitch paragrafını yapıştır → AI 5 boyutta analiz eder → **Slop 
 
 ### Analiz Boyutları
 
-| # | Boyut | Açıklama |
-|---|-------|----------|
-| 1 | Buzzword Yoğunluğu | Boş jargon oranı |
-| 2 | Kanıt Eksikliği | Veri/metrik olmadan büyük iddialar |
-| 3 | Pazar Şişirme | Abartılı TAM/SAM/SOM |
-| 4 | Belirsiz Fayda | Somut değer yerine genel vaatler |
-| 5 | Teknik Muğlaklık | Detaysız teknoloji kullanımı |
+| #   | Boyut              | Açıklama                           |
+| --- | ------------------ | ---------------------------------- |
+| 1   | Buzzword Yoğunluğu | Boş jargon oranı                   |
+| 2   | Kanıt Eksikliği    | Veri/metrik olmadan büyük iddialar |
+| 3   | Pazar Şişirme      | Abartılı TAM/SAM/SOM               |
+| 4   | Belirsiz Fayda     | Somut değer yerine genel vaatler   |
+| 5   | Teknik Muğlaklık   | Detaysız teknoloji kullanımı       |
 
 ## Demo
 
@@ -34,6 +34,7 @@ npx expo start
 ```
 
 Uygulama açıldığında:
+
 1. 🔑 API Key butonuna tıkla → Anthropic API key'ini gir
 2. Pitch paragrafını yapıştır (veya örnek seç)
 3. "Analiz Et" butonuna bas
@@ -47,14 +48,14 @@ Uygulama açıldığında:
 
 ## Decision Log
 
-| Karar | Neden |
-|-------|-------|
-| Track 2 seçildi | En basit akış: tek input → tek output, multi-turn/parsing yok |
-| Expo blank template | Minimum bağımlılık, hızlı geliştirme |
-| Client-side API çağrısı | Demo amaçlı; production'da backend proxy kullanılmalı |
-| Dark theme | Slop dedektörü konseptine uygun karanlık/edgy estetik |
-| 5 boyutlu analiz | Tek bir sayıdan daha anlamlı ve öğretici |
-| Örnek pitch'ler eklendi | İlk kullanımda boş ekran sorunu çözüldü |
+| Karar                   | Neden                                                         |
+| ----------------------- | ------------------------------------------------------------- |
+| Track 2 seçildi         | En basit akış: tek input → tek output, multi-turn/parsing yok |
+| Expo blank template     | Minimum bağımlılık, hızlı geliştirme                          |
+| Client-side API çağrısı | Demo amaçlı; production'da backend proxy kullanılmalı         |
+| Dark theme              | Slop dedektörü konseptine uygun karanlık/edgy estetik         |
+| 5 boyutlu analiz        | Tek bir sayıdan daha anlamlı ve öğretici                      |
+| Örnek pitch'ler eklendi | İlk kullanımda boş ekran sorunu çözüldü                       |
 
 ## Dosya Yapısı
 
@@ -67,5 +68,5 @@ submissions/20210999-slop-dedektoru/
 │       ├── App.js     ← ana uygulama kodu
 │       ├── package.json
 │       └── ...
-└── app-release.apk    ← APK dosyası
+└──apk linki:https://expo.dev/artifacts/eas/uroBVYETxBwqiFn5218qzS.apk
 ```
