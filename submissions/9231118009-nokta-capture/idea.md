@@ -32,21 +32,27 @@ Kullanıcı pitch metnini yapıştırır, AI şu boyutları test eder:
 3. AI'ın hangi modeli/veriyi kullandığını belirt
 ```
 
-## Kullanıcı Akışı
+## Kullanıcı Akışı & Human Loop Spectrum
 
-1. Uygulama açılır → Tek ekran
-2. Kullanıcı pitch paragrafını text area'ya yapıştırır
-3. "Analiz Et" butonuna basar
-4. AI (Claude API) analiz eder
-5. Slop Score + kategori bazlı puanlar + öneriler gösterilir
-6. Sonuç paylaşılabilir (share butonu)
+Hoca'nın framework'üne göre uygulama üç loop seviyesinde çalışır:
+
+| Adım | Loop | Ne olur? |
+|------|------|----------|
+| 1. Pitch yapıştır + "Analiz Et" | **HOOTL** | AI otonom analiz eder, insan müdahalesi yok |
+| 2. Sonuç ekrana gelir, "Onayla / Düzenle" sorusu çıkar | **HOTL** | İnsan sonucu izler, onaylar ya da reddeder |
+| 3a. Onayla → Sonuç kesinleşir, paylaş butonu aktif | **HOTL** | İnsan onayladı, AI kararı geçerli |
+| 3b. Düzenle → Manuel skor girişi açılır | **HITL** | İnsan tam kontrolü alır, skoru değiştirir |
 
 ## Teknik Mimari
 
 - **Frontend**: React Native + Expo
-- **AI Backend**: Anthropic Claude API (doğrudan client-side çağrı — demo amaçlı)
-- **State**: React useState (basit, tek ekran)
+- **AI Backend**: Anthropic Claude API (client-side — demo amaçlı)
+- **State**: React useState (loopMode: HOOTL / HOTL / HITL)
 - **Styling**: React Native StyleSheet
+
+## Referans Alınan Materyaller
+
+Karpathy'nin autoresearch'ü, AI'ın otonom döngüde hipotez üretip metrik ölçebildiğini gösterdi. Hoca'nın HOTL/HOOTL çerçevesi ise ne zaman AI'ın otonom çalışacağını, ne zaman insanın devreye gireceğini harness katmanıyla belirlemenin önemini ortaya koydu. Slop Dedektörü bu iki fikri birleştiriyor: pitch analizi HOOTL modunda çalışıyor, kullanıcı sonucu onaylayıp paylaşmaya karar verdiğinde HITL devreye giriyor.
 
 ## Hedef Kullanıcı
 
@@ -60,3 +66,14 @@ Kullanıcı pitch metnini yapıştırır, AI şu boyutları test eder:
 - Multi-turn diyalog yok
 - Parsing/dedup karmaşası yok
 - Görsel olarak etkili (skor göstergesi)
+
+## Decision Log
+
+| Karar | Neden |
+|-------|-------|
+| Track 2 seçildi | En basit akış: tek input → tek output |
+| Expo blank template | Minimum bağımlılık, hızlı geliştirme |
+| Client-side API çağrısı | Demo amaçlı; production'da backend proxy kullanılmalı |
+| Dark theme | Slop dedektörü konseptine uygun edgy estetik |
+| 5 boyutlu analiz | Tek sayıdan daha anlamlı ve öğretici |
+| HOTL/HITL katmanı eklendi | Hoca'nın Human Loop Spectrum framework'üne göre AI sonucu kullanıcı onayına sunuluyor, reddederse manuel düzenleme modu açılıyor |

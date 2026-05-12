@@ -135,6 +135,11 @@ function DimCard({ icon, title, puan, aciklama }) {
   );
 }
 
+// ─── Human Loop Modu ───
+// HOOTL → AI otonom analiz eder
+// HOTL  → Sonuç gösterilir, kullanıcı onaylar veya reddeder
+// HITL  → Kullanıcı skoru manuel düzenler, tam kontrol
+
 // ─── Ana Uygulama ───
 export default function App() {
   const [pitch, setPitch] = useState('');
@@ -144,6 +149,11 @@ export default function App() {
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Human Loop states
+  const [loopMode, setLoopMode] = useState('HOOTL'); // HOOTL | HOTL | HITL
+  const [pendingResult, setPendingResult] = useState(null);
+  const [hitlScore, setHitlScore] = useState('');
 
   const handleAnalyze = async () => {
     if (!pitch.trim()) return;
@@ -159,13 +169,37 @@ export default function App() {
 
     try {
       const res = await analyzePitch(pitch, apiKey);
-      setResult(res);
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+      // HOOTL → HOTL: AI bitti, insan onayına sun
+      setPendingResult(res);
+      setLoopMode('HOTL');
     } catch (e) {
       setError('Analiz başarısız: ' + e.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  // HOTL: Kullanıcı onayladı → sonucu kabul et
+  const handleApprove = () => {
+    setResult(pendingResult);
+    setPendingResult(null);
+    setLoopMode('HOOTL');
+    Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+  };
+
+  // HOTL: Kullanıcı reddetti → HITL moduna geç
+  const handleReject = () => {
+    setHitlScore(String(pendingResult.slop_score));
+    setLoopMode('HITL');
+  };
+
+  // HITL: Kullanıcı skoru manuel düzenleyip onayladı
+  const handleHitlConfirm = () => {
+    const edited = { ...pendingResult, slop_score: parseInt(hitlScore) || 0 };
+    setResult(edited);
+    setPendingResult(null);
+    setLoopMode('HOOTL');
+    Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
   };
 
   const handleShare = async () => {
@@ -258,6 +292,43 @@ export default function App() {
             </View>
           )}
 
+          {/* HOTL — Onay Ekranı */}
+          {loopMode === 'HOTL' && pendingResult && (
+            <View style={s.hotlBox}>
+              <Text style={s.hotlTitle}>👤 Human On The Loop</Text>
+              <Text style={s.hotlDesc}>
+                AI analizi tamamladı. Slop Score: <Text style={{ fontWeight: '800', color: '#e11d48' }}>{pendingResult.slop_score}/100</Text>
+              </Text>
+              <Text style={s.hotlDesc}>Bu sonucu onaylıyor musun?</Text>
+              <View style={s.hotlBtns}>
+                <TouchableOpacity style={s.rejectBtn} onPress={handleReject}>
+                  <Text style={s.rejectBtnText}>✏️ Düzenle (HITL)</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.approveBtn} onPress={handleApprove}>
+                  <Text style={s.approveBtnText}>✅ Onayla</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* HITL — Manuel Düzenleme */}
+          {loopMode === 'HITL' && pendingResult && (
+            <View style={s.hitlBox}>
+              <Text style={s.hotlTitle}>🧑‍💻 Human In The Loop</Text>
+              <Text style={s.hotlDesc}>Slop score'u manuel olarak düzenle:</Text>
+              <TextInput
+                style={s.hitlInput}
+                value={hitlScore}
+                onChangeText={setHitlScore}
+                keyboardType="numeric"
+                maxLength={3}
+              />
+              <TouchableOpacity style={s.approveBtn} onPress={handleHitlConfirm}>
+                <Text style={s.approveBtnText}>✅ Onayla ve Kaydet</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Sonuçlar */}
           {result && (
             <Animated.View style={{ opacity: fadeAnim, marginTop: 8 }}>
@@ -334,4 +405,15 @@ const s = StyleSheet.create({
   oneriText: { flex: 1, fontSize: 14, color: '#ccc', lineHeight: 20 },
   shareBtn: { backgroundColor: '#1e3a5f', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 12, borderWidth: 1, borderColor: '#2a5a8f' },
   shareBtnText: { color: '#93c5fd', fontSize: 16, fontWeight: '600' },
+  // HOTL / HITL
+  hotlBox: { ...card, borderRadius: 16, padding: 20, marginBottom: 16, borderColor: '#854d0e' },
+  hitlBox: { ...card, borderRadius: 16, padding: 20, marginBottom: 16, borderColor: '#1e40af' },
+  hotlTitle: { fontSize: 16, fontWeight: '800', color: '#fbbf24', marginBottom: 8 },
+  hotlDesc: { fontSize: 14, color: '#ccc', marginBottom: 6, lineHeight: 20 },
+  hotlBtns: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  rejectBtn: { flex: 1, backgroundColor: '#292524', borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#44403c' },
+  rejectBtnText: { color: '#d6d3d1', fontSize: 14, fontWeight: '600' },
+  approveBtn: { flex: 1, backgroundColor: '#14532d', borderRadius: 12, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#166534' },
+  approveBtnText: { color: '#86efac', fontSize: 14, fontWeight: '600' },
+  hitlInput: { ...card, borderRadius: 12, padding: 14, color: '#fff', fontSize: 32, fontWeight: '800', textAlign: 'center', marginVertical: 12 },
 });
